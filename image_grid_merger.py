@@ -8,7 +8,7 @@ class ImageGridMerger:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "images": ("IMAGE",),
+                "image_1": ("IMAGE",),
                 "columns": (
                     "INT",
                     {
@@ -29,7 +29,14 @@ class ImageGridMerger:
                 "background": (
                     ["black", "white", "gray"],
                 ),
-            }
+            },
+            "optional": {
+                "image_2": ("IMAGE",),
+                "image_3": ("IMAGE",),
+                "image_4": ("IMAGE",),
+                "image_5": ("IMAGE",),
+                "image_6": ("IMAGE",),
+            },
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -59,24 +66,43 @@ class ImageGridMerger:
 
         return torch.ones((1, h, w, 3), dtype=torch.float32) * value
 
-    def merge(self, images, columns, spacing, background):
+    def merge(
+        self,
+        image_1,
+        columns,
+        spacing,
+        background,
+        image_2=None,
+        image_3=None,
+        image_4=None,
+        image_5=None,
+        image_6=None,
+    ):
 
-        # IMAGE batch shape:
-        # (N,H,W,C)
+        # each image_N input is itself an IMAGE batch of shape (N,H,W,C);
+        # flatten every connected slot into a single list of (1,H,W,C) images
+        batches = [
+            b
+            for b in (image_1, image_2, image_3, image_4, image_5, image_6)
+            if b is not None
+        ]
 
-        count = images.shape[0]
+        images = []
+        for batch in batches:
+            for i in range(batch.shape[0]):
+                images.append(batch[i].unsqueeze(0))
 
-        heights = [images[i].shape[0] for i in range(count)]
-        widths = [images[i].shape[1] for i in range(count)]
+        count = len(images)
+
+        heights = [img.shape[1] for img in images]
+        widths = [img.shape[2] for img in images]
 
         target_h = max(heights)
         target_w = max(widths)
 
         resized = []
 
-        for i in range(count):
-
-            img = images[i].unsqueeze(0)
+        for img in images:
 
             if img.shape[1] != target_h or img.shape[2] != target_w:
                 img = self.resize(img, target_h, target_w)
