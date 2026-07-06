@@ -1,0 +1,13 @@
+[project]
+name = "image-grid-merger"
+description = "ComfyUI custom node that merges a batch of images into a single grid canvas."
+version = "1.0.0"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/SheikhAnas999/Images_Merge_ComfyUI"
+
+[tool.comfy]
+PublisherId = "SheikhAnas999"
+DisplayName = "Image Grid Merger"
+Icon = ""
