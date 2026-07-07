@@ -126,6 +126,8 @@ class ImageGridMergerFromFiles:
 
         count = len(images)
 
+        columns = min(columns, count)
+
         heights = [img.shape[1] for img in images]
         widths = [img.shape[2] for img in images]
 
