@@ -3,7 +3,6 @@ import hashlib
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from PIL import Image, ImageOps
 
 import folder_paths
@@ -51,7 +50,7 @@ class ImageGridMergerFromFiles:
                     },
                 ),
                 "background": (
-                    ["black", "white", "gray"],
+                    ["white", "black", "gray"],
                 ),
             },
             "optional": {
@@ -81,17 +80,6 @@ class ImageGridMergerFromFiles:
         arr = np.array(img).astype(np.float32) / 255.0
         return torch.from_numpy(arr).unsqueeze(0)
 
-    def resize(self, img, h, w):
-        img = img.permute(0, 3, 1, 2)
-        img = F.interpolate(
-            img,
-            size=(h, w),
-            mode="bilinear",
-            align_corners=False,
-        )
-        img = img.permute(0, 2, 3, 1)
-        return img
-
     def make_blank(self, h, w, color):
 
         if color == "white":
@@ -102,6 +90,20 @@ class ImageGridMergerFromFiles:
             value = 0.0
 
         return torch.ones((1, h, w, 3), dtype=torch.float32) * value
+
+    def place_on_canvas(self, img, h, w, color):
+        # keep the original image untouched; center it on a padded
+        # canvas instead of stretching it to fill the cell
+        img_h, img_w = img.shape[1], img.shape[2]
+
+        if img_h == h and img_w == w:
+            return img
+
+        canvas = self.make_blank(h, w, color)
+        y_off = (h - img_h) // 2
+        x_off = (w - img_w) // 2
+        canvas[:, y_off:y_off + img_h, x_off:x_off + img_w, :] = img
+        return canvas
 
     def merge(
         self,
@@ -134,14 +136,10 @@ class ImageGridMergerFromFiles:
         target_h = max(heights)
         target_w = max(widths)
 
-        resized = []
+        placed = []
 
         for img in images:
-
-            if img.shape[1] != target_h or img.shape[2] != target_w:
-                img = self.resize(img, target_h, target_w)
-
-            resized.append(img)
+            placed.append(self.place_on_canvas(img, target_h, target_w, background))
 
         rows = (count + columns - 1) // columns
 
@@ -162,8 +160,8 @@ class ImageGridMergerFromFiles:
 
             for c in range(columns):
 
-                if idx < len(resized):
-                    current.append(resized[idx])
+                if idx < len(placed):
+                    current.append(placed[idx])
                 else:
                     current.append(blank)
 
